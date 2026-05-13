@@ -4,57 +4,47 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { Player, Room, GameNotification } from '@/types';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { GameNotification, Question } from '@/types';
+
+export interface GameStats {
+  score: number;
+  correctCount: number;
+  wrongCount: number;
+  totalTimeTaken: number;
+}
 
 interface GameContextType {
-  currentPlayer: Player | null;
-  setCurrentPlayer: (player: Player | null) => void;
-  roomCode: string | null;
-  setRoomCode: (code: string | null) => void;
+  difficulty: string;
+  setDifficulty: (diff: string) => void;
+  questions: Question[];
+  setQuestions: (q: Question[]) => void;
+  gameStats: GameStats;
+  setGameStats: (stats: GameStats | ((prev: GameStats) => GameStats)) => void;
+  resetGame: () => void;
   notifications: GameNotification[];
   addNotification: (message: string, type?: GameNotification['type']) => void;
 }
 
+const defaultStats: GameStats = {
+  score: 0,
+  correctCount: 0,
+  wrongCount: 0,
+  totalTimeTaken: 0,
+};
+
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
-  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<string>('medium');
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [gameStats, setGameStats] = useState<GameStats>(defaultStats);
   const [notifications, setNotifications] = useState<GameNotification[]>([]);
 
-  // Load from local storage on mount
-  useEffect(() => {
-    try {
-      const storedPlayer = localStorage.getItem('currentPlayer');
-      if (storedPlayer) {
-        setCurrentPlayer(JSON.parse(storedPlayer));
-      }
-      const storedRoom = localStorage.getItem('currentRoomCode');
-      if (storedRoom) {
-        setRoomCode(storedRoom);
-      }
-    } catch (e) {
-      console.error('Error loading game state from local storage', e);
-    }
-  }, []);
-
-  // Save to local storage on change
-  useEffect(() => {
-    if (currentPlayer) {
-      localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
-    } else {
-      localStorage.removeItem('currentPlayer');
-    }
-  }, [currentPlayer]);
-
-  useEffect(() => {
-    if (roomCode) {
-      localStorage.setItem('currentRoomCode', roomCode);
-    } else {
-      localStorage.removeItem('currentRoomCode');
-    }
-  }, [roomCode]);
+  const resetGame = () => {
+    setQuestions([]);
+    setGameStats(defaultStats);
+  };
 
   const addNotification = (message: string, type: GameNotification['type'] = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -69,10 +59,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider
       value={{
-        currentPlayer,
-        setCurrentPlayer,
-        roomCode,
-        setRoomCode,
+        difficulty,
+        setDifficulty,
+        questions,
+        setQuestions,
+        gameStats,
+        setGameStats,
+        resetGame,
         notifications,
         addNotification,
       }}
