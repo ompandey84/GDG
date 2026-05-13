@@ -136,6 +136,8 @@ export default function LobbyPage({ params }: { params: Promise<{ roomCode: stri
   const allPlayersReady = players.length > 0 && players.every(p => p.is_ready);
   const canStart = currentPlayer.is_host && players.length >= 1; // Allow 1 player for testing
 
+  const me = players.find(p => p.id === currentPlayer.id) || currentPlayer;
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       <div className="text-center space-y-2 mb-8">
@@ -208,18 +210,18 @@ export default function LobbyPage({ params }: { params: Promise<{ roomCode: stri
               )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-between space-y-6">
-              <PlayerList players={players} currentPlayerId={currentPlayer.id} />
+              <PlayerList players={players} currentPlayerId={me.id} />
               
               <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row gap-4 mt-auto">
                 <Button
-                  variant={currentPlayer.is_ready ? "outline" : "default"}
+                  variant={me.is_ready ? "outline" : "default"}
                   className="flex-1 py-6 text-lg"
                   onClick={toggleReady}
                 >
-                  {currentPlayer.is_ready ? 'Not Ready' : 'I am Ready!'}
+                  {me.is_ready ? 'Not Ready' : 'I am Ready!'}
                 </Button>
 
-                {currentPlayer.is_host && (
+                {me.is_host && (
                   <Button
                     variant="gold"
                     className="flex-1 py-6 text-lg"
