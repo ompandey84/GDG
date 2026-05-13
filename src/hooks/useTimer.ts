@@ -34,9 +34,10 @@ export function useTimer({ duration, isRunning, onTimeout }: UseTimerProps) {
     }
 
     hasTimedOut.current = false;
-    startTimeRef.current = performance.now();
+    startTimeRef.current = Date.now();
 
-    const tick = (now: number) => {
+    const tick = () => {
+      const now = Date.now();
       const elapsed = (now - startTimeRef.current) / 1000;
       const remaining = Math.max(0, duration - elapsed);
       const prog = remaining / duration;

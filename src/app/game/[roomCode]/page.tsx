@@ -30,6 +30,23 @@ export default function GamePage({ params }: { params: Promise<{ roomCode: strin
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
   
+  // Host only: Check if everyone has answered
+  const checkAllAnswersSubmitted = useCallback(async () => {
+    if (!currentPlayer?.is_host || !activeQuestion || room?.status !== 'playing') return;
+    
+    // Slight delay to ensure DB replication is complete before counting
+    setTimeout(async () => {
+      const { count } = await supabase
+        .from('answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('question_id', activeQuestion.id);
+
+      if (count === players.length) {
+        moveToReview(room.id);
+      }
+    }, 100);
+  }, [currentPlayer?.is_host, activeQuestion, room?.status, room?.id, players.length]);
+
   // Realtime hooks
   const { players } = useRealtimePlayers(room?.id || null);
   const { broadcastEvent } = useRealtimeRoom({
@@ -45,11 +62,15 @@ export default function GamePage({ params }: { params: Promise<{ roomCode: strin
         if (payload.username !== currentPlayer?.username) {
           addNotification(`${payload.username} has answered!`, 'info');
         }
+        
+        // When any player answers, host checks if everyone is done
+        if (currentPlayer?.is_host) {
+          checkAllAnswersSubmitted();
+        }
       }
     }
   });
 
-  const activeQuestion = questions[room?.current_question_index || 0];
   const isReviewPhase = room?.status === 'reviewing';
 
   // Timer hook
@@ -143,21 +164,11 @@ export default function GamePage({ params }: { params: Promise<{ roomCode: strin
     // 3. Broadcast to others
     broadcastEvent('player_answered', { username: currentPlayer.username });
 
-    // 4. Host Logic: Check if everyone answered, then move to review
+    // 4. Host Logic: Check if everyone answered (including this submission)
     if (currentPlayer.is_host) {
-      // Small delay to allow DB sync
-      setTimeout(async () => {
-        const { count } = await supabase
-          .from('answers')
-          .select('*', { count: 'exact', head: true })
-          .eq('question_id', activeQuestion.id);
-
-        if (count === players.length) {
-          moveToReview(room.id);
-        }
-      }, 500);
+      checkAllAnswersSubmitted();
     }
-  }, [currentPlayer, room, activeQuestion, isAnswering, timeRemaining, players.length, broadcastEvent]);
+  }, [currentPlayer, room, activeQuestion, isAnswering, timeRemaining, checkAllAnswersSubmitted, broadcastEvent]);
 
   // Host only: Auto-move to review when timer hits 0 (if everyone didn't answer)
   useEffect(() => {

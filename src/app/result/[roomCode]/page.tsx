@@ -11,8 +11,9 @@ import { Home, RefreshCcw, Trophy, Medal } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Leaderboard } from '@/components/Leaderboard';
 import { useGameContext } from '@/providers/GameProvider';
+import { useRealtimeRoom } from '@/hooks/useRealtimeRoom';
 import { supabase } from '@/lib/supabase/client';
-import type { Player } from '@/types';
+import type { Player, Room } from '@/types';
 
 export default function ResultPage({ params }: { params: Promise<{ roomCode: string }> }) {
   const router = useRouter();
@@ -21,14 +22,21 @@ export default function ResultPage({ params }: { params: Promise<{ roomCode: str
   const { currentPlayer } = useGameContext();
   
   const [players, setPlayers] = useState<Player[]>([]);
+  const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     async function loadFinalResults() {
+      const { data: roomData } = await supabase.from('rooms').select('*').eq('room_code', roomCode).single();
+      if (!roomData) return;
+      
+      setRoom(roomData);
+
       const { data } = await supabase
         .from('players')
         .select('*')
-        .eq('room_id', (await supabase.from('rooms').select('id').eq('room_code', roomCode).single()).data?.id)
+        .eq('room_id', roomData.id)
         .order('score', { ascending: false });
         
       if (data) setPlayers(data as Player[]);
@@ -36,6 +44,43 @@ export default function ResultPage({ params }: { params: Promise<{ roomCode: str
     }
     loadFinalResults();
   }, [roomCode]);
+
+  // Teleport everyone back to lobby when host resets the room
+  useRealtimeRoom({
+    roomId: room?.id || null,
+    onRoomUpdate: (updatedRoom) => {
+      if (updatedRoom.status === 'waiting') {
+        router.push(`/lobby/${roomCode}`);
+      }
+    }
+  });
+
+  const handleStartNewMatch = async () => {
+    if (!room || !currentPlayer?.is_host) return;
+    setIsResetting(true);
+
+    try {
+      // 1. Delete all answers for this room
+      await supabase.from('answers').delete().in('player_id', players.map(p => p.id));
+
+      // 2. Reset player scores & ready status
+      await supabase
+        .from('players')
+        .update({ score: 0, streak: 0, is_ready: false })
+        .eq('room_id', room.id);
+
+      // 3. Reset room status
+      await supabase
+        .from('rooms')
+        .update({ status: 'waiting', current_question_index: 0, started_at: null })
+        .eq('id', room.id);
+        
+      // Realtime listener will route everyone
+    } catch (err) {
+      console.error(err);
+      setIsResetting(false);
+    }
+  };
 
   if (loading) {
     return <div className="animate-pulse">Loading final results...</div>;
@@ -111,9 +156,11 @@ export default function ResultPage({ params }: { params: Promise<{ roomCode: str
           <Button 
             variant="gold" 
             className="px-8 py-6 text-lg shadow-[0_0_15px_rgba(245,197,24,0.3)]"
-            onClick={() => router.push('/')}
+            onClick={handleStartNewMatch}
+            disabled={isResetting}
           >
-            <RefreshCcw className="w-5 h-5 mr-2" /> Start New Match
+            <RefreshCcw className={`w-5 h-5 mr-2 ${isResetting ? 'animate-spin' : ''}`} /> 
+            {isResetting ? 'Resetting...' : 'Start New Match'}
           </Button>
         )}
       </motion.div>
