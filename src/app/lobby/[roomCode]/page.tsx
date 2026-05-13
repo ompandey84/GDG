@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Copy, Share2, Play } from 'lucide-react';
@@ -18,9 +18,10 @@ import { useRealtimeRoom } from '@/hooks/useRealtimeRoom';
 import { supabase } from '@/lib/supabase/client';
 import type { Room } from '@/types';
 
-export default function LobbyPage({ params }: { params: { roomCode: string } }) {
+export default function LobbyPage({ params }: { params: Promise<{ roomCode: string }> }) {
   const router = useRouter();
-  const roomCode = params.roomCode.toUpperCase();
+  const resolvedParams = use(params);
+  const roomCode = resolvedParams.roomCode.toUpperCase();
   const { currentPlayer, setRoomCode, addNotification } = useGameContext();
   
   const [room, setRoom] = useState<Room | null>(null);

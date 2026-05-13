@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Home, RefreshCcw, Trophy, Medal } from 'lucide-react';
@@ -14,9 +14,10 @@ import { useGameContext } from '@/providers/GameProvider';
 import { supabase } from '@/lib/supabase/client';
 import type { Player } from '@/types';
 
-export default function ResultPage({ params }: { params: { roomCode: string } }) {
+export default function ResultPage({ params }: { params: Promise<{ roomCode: string }> }) {
   const router = useRouter();
-  const roomCode = params.roomCode.toUpperCase();
+  const resolvedParams = use(params);
+  const roomCode = resolvedParams.roomCode.toUpperCase();
   const { currentPlayer } = useGameContext();
   
   const [players, setPlayers] = useState<Player[]>([]);

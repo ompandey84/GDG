@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuizCard } from '@/components/QuizCard';
@@ -18,9 +18,10 @@ import { supabase } from '@/lib/supabase/client';
 import { calculateScore } from '@/lib/gameEngine';
 import type { Room, Question, Answer, ScoreResult } from '@/types';
 
-export default function GamePage({ params }: { params: { roomCode: string } }) {
+export default function GamePage({ params }: { params: Promise<{ roomCode: string }> }) {
   const router = useRouter();
-  const roomCode = params.roomCode.toUpperCase();
+  const resolvedParams = use(params);
+  const roomCode = resolvedParams.roomCode.toUpperCase();
   const { currentPlayer, addNotification } = useGameContext();
   
   const [room, setRoom] = useState<Room | null>(null);
